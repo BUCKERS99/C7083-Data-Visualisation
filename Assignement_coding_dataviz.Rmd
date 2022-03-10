@@ -1,0 +1,667 @@
+---
+title: "Commodities and Yields of the World"
+author: "17239400"
+date: "10/03/2022"
+output: 
+  pdf_document:
+    number_sections: true
+    toc: true
+    toc_depth: 2
+always_allow_html: true
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+if(!require("shiny")) install.packages("shiny")
+if(!require("bslib")) install.packages("bslib")
+if(!require("plotly")) install.packages("plotly")
+if(!require("tidyverse")) install.packages("tidyverse")
+if(!require("shinydashboard")) install.packages("shiydashboard")
+if(!require("shinythemes")) install.packages("shiythemes")
+if(!require("dplyr")) install.packages("dplyr")
+if(!require("ggplot2")) install.packages("ggplot2")
+if(!require("ggthemes")) install.packages("ggthemes")
+if(!require("gganimate")) install.packages("gganimate")
+if(!require("extrafont")) install.packages("extrafont")
+if(!require("kableExtra")) install.packages("kableExtra")
+
+
+# Setup
+yield <-readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/key_crop_yields.csv') 
+
+tracs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/cereal_yields_vs_tractor_inputs_in_agriculture.csv')
+use <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/land_use_vs_yield_change_in_cereal_production.csv')
+land <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/arable_land_pin.csv')
+  
+# renaming variables
+names(tracs)[names(tracs) == "Tractors per 100 sq km arable land"] <- "tractor"
+names(tracs)[names(tracs) == "Cereal yield (kilograms per hectare) (kg per hectare)"] <- "Yield"
+names(yield)[names(yield) == "Wheat (tonnes per hectare)" ] <- "Wheat"
+names(yield)[names(yield) == "Rice (tonnes per hectare)" ] <- "Rice"
+names(yield)[names(yield) == "Maize (tonnes per hectare)" ] <- "Maize"
+names(yield)[names(yield) == "Soybeans (tonnes per hectare)" ] <- "Soybeans"
+names(yield)[names(yield) == "Potatoes (tonnes per hectare)" ] <- "Potatoes"
+names(yield)[names(yield) == "Beans (tonnes per hectare)" ] <- "Beans"
+names(yield)[names(yield) == "Peas (tonnes per hectare)" ] <- "Peas"
+names(yield)[names(yield) == "Cassava (tonnes per hectare)" ] <- "Cassava"
+names(yield)[names(yield) == "Barley (tonnes per hectare)" ] <- "Barley"
+names(yield)[names(yield) == "Cocoa beans (tonnes per hectare)" ] <- "Cocoa"
+names(yield)[names(yield) == "Bananas (tonnes per hectare)" ] <- "Bananas"
+names(land)[names(land) == "Arable land needed to produce a fixed quantity of crops ((1.0 = 1961))" ] <- "land requirement"
+names(use)[names(use) == "Change to land area used for cereal production since 1961" ] <- "land change"
+
+
+```
+\newpage
+
+# Introduction
+The data sets included in this portfolio come from the github for [R4DS](https://github.com/rfordatascience/tidytuesday/tree/master/data/2020/2020-09-01) and contain data collected from [Our world in data](https://ourworldindata.org/crop-yields). Four data sets are used throughout to create visualisations concerning crops and their countries from 1885 to 2019; however, there is limited data for years preceding 1960. The data sets contain observations for a mix of over 200 countries and continents. Each data set is explained below in more detail.
+
+## Key crop yields
+
+A dataset recording the yield of certain commodities with a range of year from 1961 to 2018 and over 13000 observations. 14 variables are described below:
+````{r}
+yield_var_class <- c("character",
+                     "character",
+                     "double",
+                     "double",
+                     "double",
+                     "double",
+                     "double",
+                     "double",
+                     "double",
+                     "double",
+                     "double",
+                     "double",
+                     "double",
+                     "double")
+yield_var_desc <- c("Country or Region Name",
+                    "Country Code (NA is for regions)",
+                    "Year",
+                    "Wheat Yield",
+                    "Rice Yield",
+                    "Maize Yield",
+                    "Soybean Yield",
+                    "Potato Yield",
+                    "Beans Yield",
+                    "Peas Yield",
+                    "Cassava (yuca) Yield",
+                    "Barley Yield",
+                    "Cocoa Yield",
+                    "Banana Yield")
+
+table_head <- c("Variable", "Class", "Description")
+
+yield_var_table <- data.frame(names(yield), yield_var_class, yield_var_desc)
+
+
+kable(yield_var_table, col.names = table_head) %>%
+column_spec(1, bold = T, border_left = T) %>%
+column_spec(3, border_right = T) %>%
+  row_spec(0, bold = T)
+```
+
+## Arable land
+A dataset recording the area of land used for arable agriculture with a range of year from 1961 to 2014 and over 11000 observations. 4 variables are described below:
+```{r}
+land_var_class <- c("Character",
+                    "Character",
+                    "Double",
+                    "Double")
+
+
+land_var_desc <- c("Country or Region Name",
+                    "Country Code (NA is for regions)",
+                    "Year",
+                   "Arable land normalised to 1961")
+
+land_var_table <- data.frame(names(land), land_var_class, land_var_desc)
+
+
+kable(land_var_table, col.names = table_head) %>%
+column_spec(1, bold = T, border_left = T) %>%
+column_spec(3, border_right = T) %>%
+  row_spec(0, bold = T)
+
+```
+## Land use
+A dataset recording the change in land use for arable agriculture with a range of year from 10000 BCE to 2019 and over 49000 observations. This data contains lots of missing values due to population data having been added from Gapminder. 6 variables are described below:
+```{r}
+use_var_class <- c("Character",
+                    "Character",
+                    "Double",
+                    "Double",
+                    "Double",
+                   "Double")
+
+use_var_desc <- c("Country or Region Name",
+                    "Country Code (NA is for regions)",
+                    "Year",
+                  "Cereal Yield Index",
+                  "Change in  land area use for cereal production relative to 1961",
+                  "Total Population (Gapminder)")
+
+use_var_table <- data.frame(names(use), use_var_class, use_var_desc)
+
+kable(use_var_table, col.names = table_head) %>%
+column_spec(1, bold = T, border_left = T) %>%
+column_spec(3, border_right = T) %>%
+  row_spec(0, bold = T)
+```
+## Tractors
+A dataset recording yield of crops and the number of tractors per 100 square kilometer of arable land with a range of year from 10000 BCE to 2019 AD and over 49000 observations. This data contains lots of missing values due to population data having been added from Gapminder. 6 variables are described below:
+```{r}
+trac_var_class <- c("Character",
+                    "Character",
+                    "Double",
+                    "Double",
+                    "Double",
+                   "Double")
+
+trac_var_desc <- c("Country or Region Name",
+                    "Country Code (NA is for regions)",
+                    "Year",
+                  "Number of tractors per 100 sq km of arable land",
+                  "Cereal Yield in kg per hectare",
+                  "Total Population (Gapminder)")
+
+trac_var_table <- data.frame(names(tracs), trac_var_class, trac_var_desc)
+
+kable(trac_var_table, col.names = table_head) %>%
+column_spec(1, bold = T, border_left = T) %>%
+column_spec(3, border_right = T) %>%
+  row_spec(0, bold = T)
+```
+
+
+
+\newpage
+
+\newpage
+# Comparitive app between countries and years
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+yield <-readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/key_crop_yields.csv')
+
+# library(shiny)
+# library(shinythemes)
+# install.packages("ggtextures")
+# install.packages("ggtextures")
+# install.packages("magick")
+# library(ggtextures)
+# library(magick)
+
+# install.packages("remotes")
+# remotes::install_github("coolbutuseless/ggpattern")
+# install.packages("ggpattern")
+# library(ggpattern)
+#renaming
+names(yield)[names(yield) == "Wheat (tonnes per hectare)" ] <- "Wheat"
+names(yield)[names(yield) == "Rice (tonnes per hectare)" ] <- "Rice"
+names(yield)[names(yield) == "Maize (tonnes per hectare)" ] <- "Maize"
+names(yield)[names(yield) == "Soybeans (tonnes per hectare)" ] <- "Soybeans"
+names(yield)[names(yield) == "Potatoes (tonnes per hectare)" ] <- "Potatoes"
+names(yield)[names(yield) == "Beans (tonnes per hectare)" ] <- "Beans"
+names(yield)[names(yield) == "Peas (tonnes per hectare)" ] <- "Peas"
+names(yield)[names(yield) == "Cassava (tonnes per hectare)" ] <- "Cassava"
+names(yield)[names(yield) == "Barley (tonnes per hectare)" ] <- "Barley"
+names(yield)[names(yield) == "Cocoa beans (tonnes per hectare)" ] <- "Cocoa"
+names(yield)[names(yield) == "Bananas (tonnes per hectare)" ] <- "Bananas"
+
+
+# Data manipulation
+yield.shiny <- yield %>%
+pivot_longer(cols = starts_with(c("Wheat", "Rice", "Maize", "Soybeans", "Potatoes", "Beans",
+                              "Peas", "Cassava", "Barley", "Cocoa", "Bananas")),
+                     names_to = "Commodity",
+                     values_to = "tonnes_per_hectare") %>%
+        group_by(Year)
+
+# Set up
+commodity_colors <- c('#ffe119',
+  '#e6194b', 
+  '#3cb44b', 
+  '#4363d8', 
+  '#f58231', 
+  '#911eb4', 
+  '#46f0f0', 
+  '#f032e6', 
+  '#bcf60c', 
+  '#fabebe',
+  '#808000') 
+
+
+Commodity_Names <- c("Wheat", "Rice", "Maize", "Soybeans", "Potatoes", "Beans",
+                              "Peas", "Cassava", "Barley", "Cocoa", "Bananas")
+
+
+    
+    
+# Creating the UI and Server
+
+  ui <- fluidPage(
+    theme = shinytheme("united"),
+    titlePanel("Which countries grow what crop?"),
+    fluidRow(
+      column(10, "Start typing the country name")),
+    fluidRow(
+      column(6,
+             selectizeInput(inputId = "Country1",
+                            label = "Type the country:",
+                            choices = NULL),
+             multiple = F),
+      column(6, 
+             selectizeInput( inputId = "Country2",
+                             label = "Type the Country:",
+                             choices = NULL),
+             multiple = F)),
+    fluidRow(
+      column(6,
+             selectizeInput(inputId = "Year1",
+                            label = "Type the year:",
+                            choices = NULL),
+             multiple = F),
+      column(6, 
+             selectizeInput( inputId = "Year2",
+                             label = "Type the year:",
+                             choices = NULL),
+             multiple = F)),
+      
+       fluidRow(
+        column(width = 6, 
+               h1(textOutput(outputId = "text1"), align = "Center"),
+               plotOutput(outputId = "plot1")), 
+        
+        column(width = 6, 
+               h1(textOutput(outputId = "text2"), align = "Center"),
+               plotOutput(outputId = "plot2")))
+    )
+  
+  
+  server <- function(input, output) {
+    updateSelectizeInput(session = getDefaultReactiveDomain(), "Country1",
+                         choices = sort(yield.shiny$Entity),
+                         selected = "Colombia"[1],
+                         server = T)
+    updateSelectizeInput(session = getDefaultReactiveDomain(), "Year1",
+                         choices = sort(yield.shiny$Year),
+                         selected = "1968"[1],
+                         server = T)
+    updateSelectizeInput(session = getDefaultReactiveDomain(), "Country2",
+                         choices = sort(yield.shiny$Entity),
+                         selected = "Colombia"[1],
+                         server = T)
+    updateSelectizeInput(session = getDefaultReactiveDomain(), "Year2",
+                         choices = sort(yield.shiny$Year),
+                         selected = "2018"[1],
+                         server = T)
+    
+    output$text1 <- renderText({
+      paste(input$Country1, " ", input$Year1)
+    })
+    output$plot1 <- renderPlot({
+      ggplot(yield.shiny, aes(x = Commodity, y = tonnes_per_hectare, fill = Commodity)) +
+        geom_col(data = yield.shiny[yield.shiny$Entity == input$Country1 & yield.shiny$Year == input$Year1, ]) +
+        scale_color_manual( values = commodity_colors) +
+        theme_classic() +
+        theme(axis.text.x = element_text(angle = 90, size = 15, vjust = -.01), axis.ticks.x = element_blank(),
+              legend.position = "none") +
+        labs(y = "Tonnes per Hectare") 
+      
+    })
+    
+    output$text2 <- renderText({
+      paste(input$Country2, " ", input$Year2)
+    })
+    output$plot2 <- renderPlot({
+      ggplot(yield.shiny, aes(x = Commodity, y = tonnes_per_hectare, fill = Commodity)) +
+        geom_col(data = yield.shiny[yield.shiny$Entity == input$Country2 & yield.shiny$Year == input$Year2, ]) +
+        scale_color_manual( values = commodity_colors) +
+        theme_classic() +
+        theme(axis.text.x = element_text(angle = 90, size = 15, vjust = -.01), axis.ticks.x = element_blank(),
+              legend.position = "none") +
+        labs(y = "Tonnes per Hectare") 
+      
+    })
+    
+  }
+  
+  #shinyApp(ui, server)
+  
+# Input still image
+```
+![](C:/Users/harry/Desktop/MSc/CORE/Data Visualisation and Analytics/Assignment/DataVizAssignment/plotly_vis.PNG)
+
+**Figure 1 - Commodities and their yields for each country.**
+
+Figure 1 was created with the intention of the user comparing countries against one another to gain information on the types of commodity that the country produce. Creating the shiny dashboard was complicated and there were features that I would have liked to include, such as data labels on the bars, that would have enhanced the visualisations usability. The drop down boxes require the year and country to be typed as there were too many countries to display them all. The bar plots used show a clear distinction between commodities along with the colour choices.
+
+
+\newpage
+
+# Cereal yield of countries from 1990 to 2009
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+  tracs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/cereal_yields_vs_tractor_inputs_in_agriculture.csv')
+
+# Rename some varibales
+names(tracs)[names(tracs) == "Tractors per 100 sq km arable land"] <- "tractor"
+names(tracs)[names(tracs) == "Cereal yield (kilograms per hectare) (kg per hectare)"] <- "Yield"
+
+# factorise Entity
+tracs$Entity <- as.factor(tracs$Entity)
+tracs$Year <- as.numeric(tracs$Year)
+
+#na removal
+tracs.na <- na.omit(tracs) 
+# filter years between 1990 and 2010
+tracs.date <- tracs.na %>%
+  filter(between(Year, 1990, 2010))
+# # getting the mean number of tractors per year
+#  tractor.mean <- tapply(tracs.date$tractor, INDEX = tracs.date$Year, FUN = mean)
+#  # make this into a data frame
+#  a <- c(1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+#         2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009)
+# b <- c(329.2695, 333.9251, 355.9274, 361.6496, 372.9959, 379.5699, 388.3019, 411.0564, 434.6873, 459.7023, 479.4574, 558.8036,
+#       602.3337, 576.0309, 578.6356, 598.0310, 346.6159, 366.0877, 283.9023, 426.0272) 
+# 
+# tractor.mean <- data.frame(Year = a, avg = b)
+# Adding the avg values to the data frame depending on the year
+tracs.date <-  tracs.date %>%
+   dplyr::mutate(avg = 
+                   case_when(Year == 1990 ~ "329",
+                             Year == 1991 ~ "334",
+                             Year == 1992 ~ "355",
+                             Year == 1993 ~ "362",
+                             Year == 1994 ~ "373",
+                             Year == 1995 ~ "380",
+                             Year == 1996 ~ "388",
+                             Year == 1997 ~ "411",
+                             Year == 1998 ~ "435",
+                             Year == 1999 ~ "460",
+                             Year == 2000 ~ "479",
+                             Year == 2001 ~ "559",
+                             Year == 2002 ~ "602",
+                             Year == 2003 ~ "576",
+                             Year == 2004 ~ "579",
+                             Year == 2005 ~ "598",
+                             Year == 2006 ~ "347",
+                             Year == 2007 ~ "366",
+                             Year == 2008 ~ "283",
+                             Year == 2009 ~ "426"))
+# turn avg into a numeric
+tracs.date$avg <- as.numeric(tracs.date$avg)
+# Make the year a date
+tracs.date$Year <- as.Date(paste(tracs.date$Year, 1, 1, sep = "-"))
+
+
+
+  
+# plot a strip chart of year and yield
+ggplot(tracs.date, aes(x = Year, color = Entity)) +
+    geom_jitter(aes(y = Yield), width = 75, shape = 1) +
+ geom_line(aes(y = avg*18.75, color = "black")) +
+ scale_y_continuous(name = "Yield - kg/ha",
+                     sec.axis = sec_axis(~./18.75, name = "Mean tractors per 100 sq km per year")) +
+  theme_classic() +
+  ggtitle("Yields of countries and mean tractors per arable land") +
+  theme(legend.position = "None", plot.title = element_text(hjust = 0.5)) 
+ 
+# annotate("text", x = 1997, y = 1500, label = "UAE hitting high yields for 4 years")
+  
+
+
+
+```
+**Figure 2 - Cereal yield of countries and the average number of tractors per 100 sq kn of arable land.**
+
+Figure 2 shows the yield of each country over the space of 10 years. A strip chart was chosen as there was a lot of data to represent in a small area with the use of the jitter function allowing it to be viewed clearly. The graph shows that there is little change in the range of yield other than a few outliers. These outliers are the UAE and St Vincent and the Grenadines, for the former the yield of certain commodities were investigated over these years to see if conclusions could be made on the reason for the increase in yield. 
+
+\newpage
+
+# UAE Commodities 
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# cut out the yield data for UAE
+UAE_Yield <- na.omit(yield.shiny[yield.shiny$Entity == "United Arab Emirates",])
+
+# select the years of interest
+UAE_Yield <- UAE_Yield %>%
+  filter(between(Year, 1994, 2004))
+         
+# factorise Commodity and Year
+UAE_Yield$Year <- as.factor(UAE_Yield$Year)
+UAE_Yield$Commodity <- as.factor(UAE_Yield$Commodity)
+
+
+
+
+# ggplot
+ggplot(UAE_Yield, aes(x = Year, y = tonnes_per_hectare, fill = Commodity)) +
+  geom_bar(stat = "identity") +
+  ggthemes::theme_economist() +
+  coord_flip() +
+  geom_text(UAE_Yield, mapping = aes(label = round(tonnes_per_hectare)), stat = "identity", position = "stack", hjust = 1.25) +
+  ggtitle("Yield of commodities in the UAE") +
+  ylab("Yield (t/ha)") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+
+```
+**Figure 3 - UAE Commodities and Yields from 1994 to 2004.**
+
+From the previous Figure it was clear that between 1997 and 2000 the UAE recorded some extraordinary yields. Figure 3 was therefore created to explain this dramatic increase in yield by breaking down yield by each commodity. There was scope to include fertiliser application figures but there was no data for the UAE in this regard. The visualisation made in Figure 3 does not shed light upon the dramatic increase in yield for the UAE in 1997, it does show that there was a small increase from 1 to 5 tonnes per hectare of wheat. Due to proportion being hard for the eye to calculate the decision was taken to include data labels for ease of interpretation of this graph. 
+\newpage
+
+# Cereal Yield Index of the World
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+use <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/land_use_vs_yield_change_in_cereal_production.csv')
+
+names(use)[names(use) == 'Cereal yield index'] <- 'Yield_index'
+
+# if require in the set up not always working....
+#library(plotly)
+
+yield_graph <- plot_geo(use,
+                        locationmode = "world", 
+                        frame = ~Year) %>%
+  add_trace(locations = ~Code,
+            z = ~Yield_index,
+            zmin = 0,
+            zmax = max(use$Yield_index),
+            color = ~Yield_index,
+            colorscale = 'Electric')
+
+# yield_graph
+
+
+# changing the annotation
+
+use.map <- use %>%
+  select(Year, Code, Yield_index, Entity)%>%
+  mutate(hover = paste0(Entity, "\n", Yield_index))
+
+fontstyle <- list(
+  size = 15,
+  color = "black"
+)
+
+label <- list(
+  bgcolor = "#EEEEEE",
+  bordercolor = "transparent",
+  font = fontstyle
+)
+
+
+#mapping
+yield_graph <- plot_geo(use.map,
+                        locationmode = "world", 
+                        frame = ~Year) %>%
+  add_trace(locations = ~Code,
+            z = ~Yield_index,
+            zmin = 0,
+            zmax = 1400,
+            color = ~Yield_index,
+            colorscale = 'Viridis', 
+            text = ~hover,
+            hoverinfo = 'text') %>%
+  style(hoverlabel = label) %>%
+  config(displayModeBar = F) %>%
+  layout(title = "\nYield index of the world: 1961 - 2019") %>%
+  colorbar(title = "Yield index")
+
+yield_graph
+#htmlwidgets::saveWidget(yield_graph, "Yield_Map.html")
+
+# Input still image of the output
+
+
+```
+![](C:/Users/harry/Desktop/MSc/CORE/Data Visualisation and Analytics/Assignment/DataVizAssignment/map_vis.PNG)
+**Figure 4 - Interactive map of world yield index.**
+
+Figure 4 details the cereal yield index for all countries that had supplied data from 1961 to 2019. Cereal yield index is the average yield of all cereals grown that year, interestingly the country with the highest yield index is Oman with 1335. This animated map is also interactive; the user is able to zoom in to areas of interest and when the mouse is held over the country it will show information. The scroll bar at the bottom also allows for a specific year to be chosen for comparison, or playing across the range of years. A set scale was used to see the distinction between early and later years with colors from the viridis package, which are colourblind friendly.
+
+\newpage
+
+# Commodities
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+yield <-readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/key_crop_yields.csv')
+
+#renaming
+names(yield)[names(yield) == "Wheat (tonnes per hectare)" ] <- "Wheat"
+names(yield)[names(yield) == "Rice (tonnes per hectare)" ] <- "Rice"
+names(yield)[names(yield) == "Maize (tonnes per hectare)" ] <- "Maize"
+names(yield)[names(yield) == "Soybeans (tonnes per hectare)" ] <- "Soybeans"
+names(yield)[names(yield) == "Potatoes (tonnes per hectare)" ] <- "Potatoes"
+names(yield)[names(yield) == "Beans (tonnes per hectare)" ] <- "Beans"
+names(yield)[names(yield) == "Peas (tonnes per hectare)" ] <- "Peas"
+names(yield)[names(yield) == "Cassava (tonnes per hectare)" ] <- "Cassava"
+names(yield)[names(yield) == "Barley (tonnes per hectare)" ] <- "Barley"
+names(yield)[names(yield) == "Cocoa beans (tonnes per hectare)" ] <- "Cocoa"
+names(yield)[names(yield) == "Bananas (tonnes per hectare)" ] <- "Bananas"
+
+
+# Data manipulation
+# need one value for each year for each commodity
+yield.graph <- yield %>%
+  select(3:14) %>%
+  group_by(Year) %>%
+  summarise_each(funs(sum(., na.rm = T)))
+
+
+attach(yield.graph) # data frame needs attaching in base r to prevent using the "df$" syntax
+plot(Wheat, type = "l", lwd = 2,
+     xaxt = "n", ylim = c(0,4000), col = "tan",
+     xlab = "Year", ylab = "t/ha", 
+     main = "Yield of commodities between 1961 to 2018")
+axis(1, at = 1:length(Year), labels = Year)
+lines(Rice, col = "red", type = "l", lwd = 2)
+lines(Maize, col = "blue", type = "l", lwd = 2)
+lines(Soybeans, col = "darkturquoise", type = "l", lwd = 2)
+lines(Potatoes, col = "orange", type = "l", lwd = 2)
+lines(Beans, col = "ivory4", type = "l", lwd = 2)
+lines(Peas, col = "springgreen4", type = "l", lwd = 2)
+lines(Cassava, col = "violet", type = "l", lwd = 2)
+lines(Barley, col = "pink", type = "l", lwd = 2)
+lines(Cocoa, col = "purple", type = "l", lwd = 2)
+lines(Bananas, col = "yellow2", type = "l", lwd = 2)
+# Creat the legend using the same colors
+legend("topleft", legend = c("Wheat", "Rice", "Maize", "Soybeans", "Potatoes", "Beans",
+                              "Peas", "Cassava", "Barley", "Cocoa", "Bananas"),
+       lty = 1, lwd = 2, col = c("tan", "red", "blue", "darkturquoise", 
+                                           "orange", "ivory4", "springgreen4",
+                                           "violet", "pink", "purple", "yellow2"),
+       ncol = 2, bty = "n", cex = 0.8,
+       text.col = c("tan", "red", "blue", "darkturquoise", 
+                                           "orange", "ivory4", "springgreen4",
+                                           "violet", "pink", "purple", "yellow2"),
+       inset = 0.01)
+     
+
+```
+**Figure 5 - Total commodity yield between 1961 and 2018.**
+
+Figure 5 is a base R visualisation constructed to detail the yield of commodities over a span of 57 years. In general it shows that the yield has increased for all commodities other than cocoa. The yield for cocoa should not be seen as reliable however, as the countries that grow this commodity do not have accurate recording methods and yields are not necessarily correct. Colour was used to distinguish between commodities and the cumulative total is calculated and plotted in order to easily see trends over a time series.
+\newpage
+
+
+
+# Land usage
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+land <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-01/arable_land_pin.csv')
+
+# rename the long variable
+names(land)[names(land) == "Arable land needed to produce a fixed quantity of crops ((1.0 = 1961))" ] <- "land_requirement"
+
+# Make a value of continent names
+continents <- c("Africa", "Europe", "Oceania", "Northern America", "South America", "Asia")
+
+
+# cut out data for continents
+land.cont <- land %>%
+ dplyr::filter(Entity %in% continents) 
+
+# Make the annotation a vector
+(ggplot(land.cont, aes(x=Year, y=land_requirement, col=Entity)) +
+  geom_line(lwd = 1) +
+  theme_classic() +
+  ggtitle("Change in the amount of arable land needed to produce a fixed quantity of crops") +
+  theme(axis.title = element_text(size = 15, face = "bold"),
+        axis.text = element_text(size = 13, color = "black"),
+        legend.text = element_text(size = 13, colour = "black"),
+        legend.title = element_text(size = 13, face = "bold"),
+        title = element_text(face = "bold", size = 9)
+    ) +
+  ylab("Land required compared to 1961") +
+  annotate("text", label = "Downward trend suggests", x = 1998, y = 0.9) +
+  annotate("text", label = "that yield has increased.", x = 1998, y = 0.85))
+
+
+
+
+
+```
+**Figure 6 - Change in land required to produce a fixed amount of crop (relative to 1961).**
+
+Figure 6 suggests in the graphs annotation that the downward trend of the amount of land needed to produce a fixed amount of crop could be attributed to an increase in yield for each commodity. This increase in yield is shown in figure 5 so the visualisations relate to one another well. The graph is plotted as a comparison to the amount of land needed in 1961 to grow a set amount of produce. the graph was constructed using ggplot and is intended to just show an overall trend rather than data values to be read from it. 
+\newpage
+
+# Critique of visualisations
+
+## Bad visualisation
+
+
+Appendix 1 attempts to show the percentage of the worlds’ debt in a choropleth pie-chart. The annotations found throughout the visualisation are informative and helpful with a clear definition in the subtitle of the overall figure. This relates to the principle of detailed captions outlined by Midway (2020), however in the same principle it is outlined that the visuals should be simple. The overall image of the pie chart is challenging to read due to the diverse geometric shapes used for each country. For the reader it creates uncertainty to whether these shapes contain meaning or they are for visual effect. Small annotations that overlap the boundary boxes prevent the reader from being able to gain understanding of what the data relates to. Within these annotations contains the percentage figure which does help the reader with understanding: but requires a calculation to work out the actual information. When working with large figures, such as $69 trillion, it is asking the audience too much to work out what 2.7% of $69 trillion is. The colours chosen for the choropleth scale are difficult to look at and understand their value to the overall graph. This visualisation could be improved through creating an interactive version where the top 10 countries are initially displayed with the option of selecting over countries for comparison. The choice of a pie-chart could also be changes to a bar-graph or map style.
+
+
+
+## Good visualisation
+
+
+Appendix 2 shows a map type visualisation describing the number of electric car charging stations per 100,000 cars in the United states. The creator has chosen a simple and distinctive colour scheme which allows the reader to differentiate between the high and low values. The states of America also change in size depending on the amount of electric charging stations within the state. The subtitle gives a clear definition of what the graph is about and how to interpret the overall figure. The simplicity of this visualisation allows it to be read and understood without having to perform mental maths, as described in Appendix 1. It is worth highlighting that due to the mapping style the distorted shapes of the states could lead to potential confusion when trying to determine which state is which. The use of the map style also does not make it easily readable to people with little or no American geographic knowledge, and the lack of actual values make the audience guess using the choropleth scale. This visualisation could be improved by including a side-by-side bar chart next with the actual values and state names to solve the potential lack of knowledge in the audience.       
+
+\newpage
+# References
+
+Midway, S.R., 2020. Principles of effective data visualization. *Patterns*, 1(9), p.100141.
+
+Twitter. 2022. *Benjamin Nowak* [Online] Available from:https://twitter.com/BjnNowak/status/1498658998341537796 [Accessed on 01/03/2022].
+
+VisualCapitalist. 2019. *$60 Trillion of World Debt in One Infographic*. [Online]. Available from:https://www.visualcapitalist.com/69-trillion-of-world-debt-in-one-infographic/ [Accesses on 01/03/2022].
+
+# Appendices
+![](C:/Users/harry/Desktop/MSc/CORE/Data Visualisation and Analytics/Assignment/DataVizAssignment/bad_viz.PNG)
+
+**Appendix 1 - Example of a bad visualisation** **Source:(VisualCapitalist, 2019)**
+
+![](C:/Users/harry/Desktop/MSc/CORE/Data Visualisation and Analytics/Assignment/DataVizAssignment/good_viz.PNG)
+
+**Appendix 2 - Example of a good visualisation** **Source:(Twitter, 2021)**
+
